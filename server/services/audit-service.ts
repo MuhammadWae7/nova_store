@@ -22,7 +22,7 @@ export const auditService = {
           action: entry.action as AuditAction,
           entity: entry.entity,
           entityId: entry.entityId || null,
-          details: entry.details || null,
+          details: (entry.details as any) || undefined,
           ipAddress: entry.ipAddress || null,
         },
       });
@@ -38,7 +38,7 @@ export const auditService = {
   async getAll(
     page = 1,
     limit = 50,
-    filters?: { action?: string; adminId?: string; entity?: string }
+    filters?: { action?: string; adminId?: string; entity?: string },
   ) {
     const where: Record<string, unknown> = {};
     if (filters?.action) where.action = filters.action;

@@ -7,6 +7,27 @@
  * Events: new_order, order_status
  */
 
+// Cloudflare Types Stub for Next.js build
+interface DurableObjectState {
+  id: unknown;
+  waitUntil(promise: Promise<any>): void;
+}
+interface CFWebSocket extends WebSocket {
+  accept(): void;
+  send(data: any): void;
+  addEventListener(type: string, listener: (event: any) => void): void;
+  close(code?: number, reason?: string): void;
+}
+declare class WebSocketPair {
+  0: CFWebSocket;
+  1: CFWebSocket;
+}
+declare global {
+  interface ResponseInit {
+    webSocket?: CFWebSocket;
+  }
+}
+
 export class DashboardNotifier {
   private state: DurableObjectState;
   private sessions: Set<WebSocket>;
@@ -20,7 +41,10 @@ export class DashboardNotifier {
     const url = new URL(request.url);
 
     // WebSocket upgrade for admin clients
-    if (url.pathname === "/ws" && request.headers.get("Upgrade") === "websocket") {
+    if (
+      url.pathname === "/ws" &&
+      request.headers.get("Upgrade") === "websocket"
+    ) {
       return this.handleWebSocket();
     }
 
@@ -46,7 +70,9 @@ export class DashboardNotifier {
     this.sessions.add(server);
 
     // Send connected event
-    server.send(JSON.stringify({ event: "connected", data: { status: "connected" } }));
+    server.send(
+      JSON.stringify({ event: "connected", data: { status: "connected" } }),
+    );
 
     // Handle close and errors
     server.addEventListener("close", () => {
@@ -68,7 +94,7 @@ export class DashboardNotifier {
    * Called by the order service after creating/updating orders.
    */
   private async handleBroadcast(request: Request): Promise<Response> {
-    const body = await request.json() as { event: string; data: unknown };
+    const body = (await request.json()) as { event: string; data: unknown };
     const message = JSON.stringify({ event: body.event, data: body.data });
 
     // Send to all connected clients, removing dead connections
@@ -85,12 +111,16 @@ export class DashboardNotifier {
     // Cleanup dead sessions
     for (const ws of deadSessions) {
       this.sessions.delete(ws);
-      try { ws.close(); } catch { /* already closed */ }
+      try {
+        ws.close();
+      } catch {
+        /* already closed */
+      }
     }
 
     return new Response(
       JSON.stringify({ success: true, recipients: this.sessions.size }),
-      { headers: { "Content-Type": "application/json" } }
+      { headers: { "Content-Type": "application/json" } },
     );
   }
 }

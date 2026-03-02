@@ -64,17 +64,19 @@ export const ContentService = {
    */
   getHomePageData: async (): Promise<HomePageData> => {
     try {
-      const res = await apiFetch<{ data: any }>(`${API_BASE}/content`);
-      const data = res?.data;
+      const res = await apiFetch<any>(`${API_BASE}/content`);
+      const data = res?.data || res;
       if (!data) return DEFAULT_CONTENT;
 
       return {
         hero: (data.home_hero as HeroData) || DEFAULT_CONTENT.hero,
         marquee: (data.home_marquee as MarqueeData) || DEFAULT_CONTENT.marquee,
         featuredCollection:
-          (data.home_featured as SectionData) || DEFAULT_CONTENT.featuredCollection,
+          (data.home_featured as SectionData) ||
+          DEFAULT_CONTENT.featuredCollection,
         newArrivals:
-          (data.home_new_arrivals as SectionData) || DEFAULT_CONTENT.newArrivals,
+          (data.home_new_arrivals as SectionData) ||
+          DEFAULT_CONTENT.newArrivals,
       };
     } catch {
       return DEFAULT_CONTENT;
