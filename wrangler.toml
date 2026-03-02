@@ -1,0 +1,32 @@
+# Cloudflare Workers Configuration
+# Nova Store — Production deployment
+
+name = "nova-store"
+compatibility_date = "2024-12-01"
+main = ".open-next/worker.js"
+
+# Durable Objects for real-time admin dashboard
+[[durable_objects.bindings]]
+name = "DASHBOARD_NOTIFIER"
+class_name = "DashboardNotifier"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["DashboardNotifier"]
+
+# R2 bucket for image uploads (MISS-04)
+[[r2_buckets]]
+binding = "IMAGES_BUCKET"
+bucket_name = "nova-store-images"
+
+# Environment variables (set via `wrangler secret put`)
+# DATABASE_URL — Neon Postgres connection string
+# SESSION_SECRET — Iron session encryption key
+# WHATSAPP_TOKEN — WhatsApp Business API token
+# WHATSAPP_PHONE_ID — WhatsApp phone number ID
+# ADMIN_PHONE — Admin phone for notifications
+# R2_PUBLIC_URL — Public URL for R2 bucket
+
+[vars]
+NEXT_PUBLIC_SITE_URL = "https://nova-store.pages.dev"
+NODE_ENV = "production"
