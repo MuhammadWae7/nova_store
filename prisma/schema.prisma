@@ -7,138 +7,93 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─────────────────────────────────────────────
-// ADMINS
-// ─────────────────────────────────────────────
-
-enum AdminRole {
-  SUPER_ADMIN
-  ADMIN
-  EDITOR
-  VIEWER
-}
-
 model Admin {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  passwordHash    String?   // Null until first-login password is set
-  name            String
-  role            AdminRole @default(ADMIN)
-  isActive        Boolean   @default(true)
-  mustSetPassword Boolean   @default(true) // Force password set on first login
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
+  id               String            @id @default(cuid())
+  email            String            @unique
+  passwordHash     String?
+  name             String
+  role             AdminRole         @default(ADMIN)
+  isActive         Boolean           @default(true)
+  mustSetPassword  Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   auditLogs        AuditLog[]
   invitationTokens InvitationToken[]
 
   @@map("admins")
 }
 
-// ─────────────────────────────────────────────
-// INVITATION TOKENS (SEC-03: Secure password setup)
-// ─────────────────────────────────────────────
-
 model InvitationToken {
-  id          String   @id @default(cuid())
-  adminId     String
-  tokenHash   String   @unique   // SHA-256 hash of the raw token
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime @default(now())
-
-  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
+  adminId   String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  admin     Admin     @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([tokenHash])
   @@index([adminId])
   @@map("invitation_tokens")
 }
 
-// ─────────────────────────────────────────────
-// RATE LIMITING (SEC-08: DB-backed, serverless-safe)
-// ─────────────────────────────────────────────
-
 model RateLimitEntry {
   id        String   @id @default(cuid())
-  key       String   // e.g. "login:192.168.1.1"
+  key       String
   createdAt DateTime @default(now())
 
   @@index([key, createdAt])
   @@map("rate_limit_entries")
 }
 
-// ─────────────────────────────────────────────
-// SECTIONS & CATEGORIES (Dynamic Taxonomy)
-// ─────────────────────────────────────────────
-
 model Section {
-  id         String   @id @default(cuid())
-  name       String   // Arabic name
-  slug       String   @unique
-  isActive   Boolean  @default(true)
-  orderIndex Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
+  id         String     @id @default(cuid())
+  name       String
+  slug       String     @unique
+  isActive   Boolean    @default(true)
+  orderIndex Int        @default(0)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
   categories Category[]
 
   @@index([orderIndex])
   @@map("sections")
 }
 
-enum SizeType {
-  TOPS      // XS, S, M, L, XL, XXL, 3XL
-  PANTS     // 28, 30, 32, 34, 36, 38, 40
-  SHOES     // 38, 39, 40, 41, 42, 43, 44, 45, 46
-  ONE_SIZE  // One Size
-}
-
 model Category {
-  id         String   @id @default(cuid())
-  name       String   // Arabic name
+  id         String    @id @default(cuid())
+  name       String
   slug       String
   sectionId  String
-  sizeType   SizeType @default(TOPS)
-  isActive   Boolean  @default(true)
-  orderIndex Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  section  Section   @relation(fields: [sectionId], references: [id], onDelete: Restrict)
-  products Product[]
+  isActive   Boolean   @default(true)
+  orderIndex Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  sizeType   SizeType  @default(TOPS)
+  section    Section   @relation(fields: [sectionId], references: [id])
+  products   Product[]
 
   @@unique([sectionId, slug])
   @@index([sectionId, orderIndex])
   @@map("categories")
 }
 
-// ─────────────────────────────────────────────
-// PRODUCTS
-// ─────────────────────────────────────────────
-
-enum ProductGender {
-  MEN
-  WOMEN
-  UNISEX
-}
-
 model Product {
-  id           String        @id @default(cuid())
+  id           String           @id @default(cuid())
   name         String
-  slug         String        @unique
+  slug         String           @unique
   description  String
-  price        Int           // Stored as EGP integer (e.g. 3500 = 3500 EGP)
-  currency     String        @default("EGP")
+  price        Int
+  currency     String           @default("EGP")
   categoryId   String
-  gender       ProductGender @default(MEN)
-  isNewArrival Boolean       @default(false)
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  category   Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  variants   ProductVariant[]
-  orderItems OrderItem[]
+  gender       ProductGender    @default(MEN)
+  isNewArrival Boolean          @default(false)
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  orderItems   OrderItem[]
+  variants     ProductVariant[]
+  category     Category         @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId])
   @@index([gender])
@@ -147,38 +102,124 @@ model Product {
 }
 
 model ProductVariant {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   productId String
-  color     String   // Hex code: "#0B0B0C"
-  images    String[] // Array of image URLs
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
-  sizes   ProductSize[]
+  color     String
+  images    String[]
+  sortOrder Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  sizes     ProductSize[]
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@map("product_variants")
 }
 
 model ProductSize {
-  id        String @id @default(cuid())
+  id        String         @id @default(cuid())
   variantId String
-  size      String // "XS", "S", "M", "L", "XL", "XXL", "3XL", "28", "30", etc.
-  stock     Int    @default(0)
-  sku       String @unique
-
-  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  size      String
+  stock     Int            @default(0)
+  sku       String         @unique
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@unique([variantId, size])
   @@index([variantId])
   @@map("product_sizes")
 }
 
-// ─────────────────────────────────────────────
-// ORDERS
-// ─────────────────────────────────────────────
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  customerAddress String
+  customerCity    String
+  totalAmount     Int
+  currency        String      @default("EGP")
+  status          OrderStatus @default(PENDING)
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  orderId      String
+  productId    String
+  productName  String
+  variantColor String
+  size         String
+  quantity     Int
+  unitPrice    Int
+  sku          String
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product      Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderSequence {
+  id      String @id @default("singleton")
+  date    String
+  counter Int    @default(0)
+
+  @@map("order_sequences")
+}
+
+model SiteContent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("site_content")
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  adminId   String?
+  action    AuditAction
+  entity    String
+  entityId  String?
+  details   Json?
+  ipAddress String?
+  createdAt DateTime    @default(now())
+  admin     Admin?      @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum SizeType {
+  TOPS
+  PANTS
+  SHOES
+  ONE_SIZE
+}
+
+enum ProductGender {
+  MEN
+  WOMEN
+  UNISEX
+}
 
 enum OrderStatus {
   PENDING
@@ -187,75 +228,6 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
 }
-
-model Order {
-  id              String      @id @default(cuid())
-  orderNumber     String      @unique // Human-readable: "NOV-20260217-0001"
-  customerName    String
-  customerEmail   String      // (MISS-05: Now stored)
-  customerPhone   String
-  customerAddress String
-  customerCity    String
-  totalAmount     Int         // In EGP — server-computed, never trusted from client
-  currency        String      @default("EGP")
-  status          OrderStatus @default(PENDING)
-  notes           String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  items OrderItem[]
-
-  @@index([status])
-  @@index([createdAt])
-  @@map("orders")
-}
-
-model OrderItem {
-  id           String @id @default(cuid())
-  orderId      String
-  productId    String
-  productName  String // Snapshot at time of order
-  variantColor String // Snapshot — hex color at time of order
-  size         String
-  quantity     Int
-  unitPrice    Int    // Snapshot at time of order in EGP — from DB, not client
-  sku          String // Snapshot
-
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
-
-  @@index([orderId])
-  @@map("order_items")
-}
-
-// ─────────────────────────────────────────────
-// ORDER SEQUENCE (Concurrency: atomic order number generation)
-// ─────────────────────────────────────────────
-
-model OrderSequence {
-  id        String @id @default("singleton")
-  date      String // "20260218" — resets counter on new day
-  counter   Int    @default(0)
-
-  @@map("order_sequences")
-}
-
-// ─────────────────────────────────────────────
-// CMS CONTENT
-// ─────────────────────────────────────────────
-
-model SiteContent {
-  id        String   @id @default(cuid())
-  key       String   @unique // "home_hero", "home_marquee", etc.
-  value     Json     // Flexible JSON for content data
-  updatedAt DateTime @updatedAt
-
-  @@map("site_content")
-}
-
-// ─────────────────────────────────────────────
-// AUDIT LOGS
-// ─────────────────────────────────────────────
 
 enum AuditAction {
   ADMIN_LOGIN
@@ -278,22 +250,4 @@ enum AuditAction {
   CATEGORY_DELETE
   TAXONOMY_REORDER
   TAXONOMY_VISIBILITY
-}
-
-model AuditLog {
-  id        String      @id @default(cuid())
-  adminId   String?
-  action    AuditAction
-  entity    String      // "product", "order", "admin", "content", "section", "category"
-  entityId  String?
-  details   Json?       // { before: {...}, after: {...} }
-  ipAddress String?
-  createdAt DateTime    @default(now())
-
-  admin Admin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
-
-  @@index([adminId])
-  @@index([action])
-  @@index([createdAt])
-  @@map("audit_logs")
 }

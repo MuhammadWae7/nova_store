@@ -3,7 +3,17 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, ShoppingBag, type LucideIcon, FileText, Settings, LogOut, AlertCircle, Package, Layers } from "lucide-react";
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  type LucideIcon,
+  FileText,
+  Settings,
+  LogOut,
+  AlertCircle,
+  Package,
+  Layers,
+} from "lucide-react";
 import { useState } from "react";
 
 interface SidebarItem {
@@ -47,9 +57,10 @@ const items: SidebarItem[] = [
 
 interface AdminSidebarProps {
   className?: string;
+  onClose?: () => void;
 }
 
-export function AdminSidebar({ className }: AdminSidebarProps) {
+export function AdminSidebar({ className, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -75,7 +86,7 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
     <aside
       className={cn(
         "flex flex-col w-64 min-h-screen bg-neutral-900 border-l border-white/10",
-        className
+        className,
       )}
     >
       {/* Brand */}
@@ -104,7 +115,7 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors",
                 isActive
                   ? "bg-white/10 text-white"
-                  : "text-neutral-400 hover:text-white hover:bg-white/5"
+                  : "text-neutral-400 hover:text-white hover:bg-white/5",
               )}
             >
               <item.icon className="h-5 w-5" />
