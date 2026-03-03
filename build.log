@@ -1,0 +1,30 @@
+
+> nova_store@1.0.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.7s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+Error [PrismaClientConstructorValidationError]: Using engine type "client" requires either "adapter" or "accelerateUrl" to be provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+    at <unknown> (.next/server/chunks/_c33216cd._.js:67:2373)
+    at new I (.next/server/chunks/_c33216cd._.js:67:2499)
+    at <unknown> (.next/server/chunks/_c33216cd._.js:74:4952685)
+    at module evaluation (.next/server/chunks/_c33216cd._.js:74:4952721)
+    at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:740:9)
+    at getOrInstantiateModuleFromParent (.next/server/chunks/[turbopack]_runtime.js:763:12)
+    at Context.esmImport [as i] (.next/server/chunks/[turbopack]_runtime.js:228:20)
+    at module evaluation (.next/server/chunks/[root-of-the-server]__42b42c27._.js:1:3066)
+    at instantiateModule (.next/server/chunks/[turbopack]_runtime.js:740:9)
+    at instantiateRuntimeModule (.next/server/chunks/[turbopack]_runtime.js:768:12)
+
+> Build error occurred
+Error: Failed to collect page data for /api/content
+    at ignore-listed frames {
+  type: 'Error'
+}

@@ -1,21 +1,24 @@
-import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@/server/generated/prisma";
 
-/**
- * Create Prisma Client with Neon serverless adapter.
- * In Prisma 7, PrismaNeon handles connection pooling internally.
- */
+export const dynamic = "force-dynamic";
+
 function createPrismaClient() {
-  const adapter = new PrismaNeon({
-    connectionString: process.env.DATABASE_URL!,
-  });
+  const connectionString = process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    console.error(
+      "CRITICAL ERROR: DATABASE_URL environment variable is missing.",
+    );
+    throw new Error("DATABASE_URL environment variable is missing.");
+  }
+
+  const logOptions =
+    process.env.NODE_ENV === "development"
+      ? ["query", "error", "warn"]
+      : ["error"];
 
   return new PrismaClient({
-    adapter,
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"],
+    log: logOptions as never,
   });
 }
 
