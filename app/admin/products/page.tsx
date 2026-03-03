@@ -13,22 +13,20 @@ import {
   Trash2,
   Package,
 } from "lucide-react";
+import Image from "next/image";
 
 interface Product {
   id: string;
   name: string;
   slug: string;
-  price: { amount: number; currency: string };
+  price: number;
   categoryId: string;
-  categoryName?: string;
-  sectionName?: string;
-  gender: string;
-  isNewArrival?: boolean;
+  category?: { name: string; section?: { name: string } };
+  isActive: boolean;
   variants: Array<{
     id: string;
-    color: string;
     images: string[];
-    sizes: Array<{ size: string; stock: number; sku: string }>;
+    sizes: Array<{ stock: number }>;
   }>;
 }
 
@@ -159,9 +157,11 @@ export default function ProductsPage() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     {product.variants[0]?.images[0] ? (
-                      <img
+                      <Image
                         src={product.variants[0].images[0]}
                         alt={product.name}
+                        width={40}
+                        height={40}
                         className="h-10 w-10 rounded-md object-cover bg-neutral-800"
                       />
                     ) : (
@@ -177,14 +177,14 @@ export default function ProductsPage() {
                 </td>
                 <td className="px-4 py-3 hidden sm:table-cell">
                   <div>
-                    <span className="text-sm text-neutral-300">{product.categoryName || "-"}</span>
-                    {product.sectionName && (
-                      <span className="text-xs text-neutral-500 block">{product.sectionName}</span>
+                    <span className="text-sm text-neutral-300">{product.category?.name || "-"}</span>
+                    {product.category?.section?.name && (
+                      <span className="text-xs text-neutral-500 block">{product.category.section.name}</span>
                     )}
                   </div>
                 </td>
                 <td className="px-4 py-3 hidden md:table-cell">
-                  <span className="text-sm text-white">{product.price.amount} ج.م</span>
+                  <span className="text-sm text-white">{product.price} ج.م</span>
                 </td>
                 <td className="px-4 py-3 hidden md:table-cell">
                   <span className={`text-sm ${getTotalStock(product) === 0 ? "text-red-400" : "text-green-400"}`}>

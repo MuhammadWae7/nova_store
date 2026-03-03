@@ -4,6 +4,7 @@ import { prisma } from "@/server/db/client";
 import { errorResponse, NotFoundError } from "@/server/lib/errors";
 import { auditService } from "@/server/services/audit-service";
 import { validateCsrf } from "@/server/middleware/csrf";
+import { revalidateTag } from "next/cache";
 
 /**
  * GET /api/admin/content — Get all CMS content
@@ -78,6 +79,8 @@ export async function PUT(request: NextRequest) {
       entityId: body.key,
       details: { key: body.key },
     });
+
+    revalidateTag("content", "default");
 
     return Response.json({ success: true, data: updated });
   } catch (error) {

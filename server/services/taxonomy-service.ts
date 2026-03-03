@@ -6,6 +6,7 @@
 import { prisma } from "@/server/db/client";
 import { AppError, NotFoundError, ConflictError } from "@/server/lib/errors";
 import { logger } from "@/server/lib/logger";
+import { revalidateTag } from "next/cache";
 
 // ── Slug helper ─────────────────────────────────
 
@@ -61,12 +62,15 @@ export const taxonomyService = {
     const existing = await prisma.section.findUnique({ where: { slug } });
     if (existing) throw new AppError(400, "يوجد قسم بنفس الاسم بالفعل");
 
-    const maxOrder = await prisma.section.aggregate({ _max: { orderIndex: true } });
+    const maxOrder = await prisma.section.aggregate({
+      _max: { orderIndex: true },
+    });
     const section = await prisma.section.create({
       data: { name, slug, orderIndex: (maxOrder._max.orderIndex ?? -1) + 1 },
     });
 
     logger.info("Section created", { id: section.id, name });
+    revalidateTag("taxonomy", "default");
     return section;
   },
 
@@ -89,8 +93,12 @@ export const taxonomyService = {
 
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
-    const section = await prisma.section.update({ where: { id }, data: updateData });
+    const section = await prisma.section.update({
+      where: { id },
+      data: updateData,
+    });
     logger.info("Section updated", { id });
+    revalidateTag("taxonomy", "default");
     return section;
   },
 
@@ -105,7 +113,7 @@ export const taxonomyService = {
 
     if (productCount > 0 && !force) {
       throw new ConflictError(
-        `لا يمكن حذف القسم لأنه يحتوي على ${productCount} منتج. استخدم الإخفاء بدلاً من الحذف.`
+        `لا يمكن حذف القسم لأنه يحتوي على ${productCount} منتج. استخدم الإخفاء بدلاً من الحذف.`,
       );
     }
 
@@ -116,16 +124,21 @@ export const taxonomyService = {
     }
 
     logger.info("Section deleted", { id, name: existing.name });
+    revalidateTag("taxonomy", "default");
   },
 
   /** Reorder sections. */
   async reorderSections(items: Array<{ id: string; orderIndex: number }>) {
     await prisma.$transaction(
       items.map((item) =>
-        prisma.section.update({ where: { id: item.id }, data: { orderIndex: item.orderIndex } })
-      )
+        prisma.section.update({
+          where: { id: item.id },
+          data: { orderIndex: item.orderIndex },
+        }),
+      ),
     );
     logger.info("Sections reordered", { count: items.length });
+    revalidateTag("taxonomy", "default");
   },
 
   // ── Categories ──────────────────────────────────
@@ -140,8 +153,14 @@ export const taxonomyService = {
   },
 
   /** Create a new category. */
-  async createCategory(data: { name: string; sectionId: string; sizeType?: string }) {
-    const section = await prisma.section.findUnique({ where: { id: data.sectionId } });
+  async createCategory(data: {
+    name: string;
+    sectionId: string;
+    sizeType?: string;
+  }) {
+    const section = await prisma.section.findUnique({
+      where: { id: data.sectionId },
+    });
     if (!section) throw new NotFoundError("القسم");
 
     const slug = generateSlug(data.name);
@@ -167,11 +186,15 @@ export const taxonomyService = {
     });
 
     logger.info("Category created", { id: category.id, name: data.name });
+    revalidateTag("taxonomy", "default");
     return category;
   },
 
   /** Update a category (rename or toggle visibility). */
-  async updateCategory(id: string, data: { name?: string; isActive?: boolean }) {
+  async updateCategory(
+    id: string,
+    data: { name?: string; isActive?: boolean },
+  ) {
     const existing = await prisma.category.findUnique({ where: { id } });
     if (!existing) throw new NotFoundError("التصنيف");
 
@@ -186,15 +209,20 @@ export const taxonomyService = {
           id: { not: id },
         },
       });
-      if (slugConflict) throw new AppError(400, "يوجد تصنيف بنفس الاسم في هذا القسم");
+      if (slugConflict)
+        throw new AppError(400, "يوجد تصنيف بنفس الاسم في هذا القسم");
       updateData.name = data.name;
       updateData.slug = newSlug;
     }
 
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
-    const category = await prisma.category.update({ where: { id }, data: updateData });
+    const category = await prisma.category.update({
+      where: { id },
+      data: updateData,
+    });
     logger.info("Category updated", { id });
+    revalidateTag("taxonomy", "default");
     return category;
   },
 
@@ -203,30 +231,40 @@ export const taxonomyService = {
     const existing = await prisma.category.findUnique({ where: { id } });
     if (!existing) throw new NotFoundError("التصنيف");
 
-    const productCount = await prisma.product.count({ where: { categoryId: id } });
+    const productCount = await prisma.product.count({
+      where: { categoryId: id },
+    });
 
     if (productCount > 0 && !force) {
       throw new ConflictError(
-        `لا يمكن حذف التصنيف لأنه يحتوي على ${productCount} منتج. أعد تصنيف المنتجات أولاً أو استخدم الإخفاء.`
+        `لا يمكن حذف التصنيف لأنه يحتوي على ${productCount} منتج. أعد تصنيف المنتجات أولاً أو استخدم الإخفاء.`,
       );
     }
 
     if (productCount > 0 && force) {
-      await prisma.category.update({ where: { id }, data: { isActive: false } });
+      await prisma.category.update({
+        where: { id },
+        data: { isActive: false },
+      });
     } else {
       await prisma.category.delete({ where: { id } });
     }
 
     logger.info("Category deleted", { id, name: existing.name });
+    revalidateTag("taxonomy", "default");
   },
 
   /** Reorder categories. */
   async reorderCategories(items: Array<{ id: string; orderIndex: number }>) {
     await prisma.$transaction(
       items.map((item) =>
-        prisma.category.update({ where: { id: item.id }, data: { orderIndex: item.orderIndex } })
-      )
+        prisma.category.update({
+          where: { id: item.id },
+          data: { orderIndex: item.orderIndex },
+        }),
+      ),
     );
     logger.info("Categories reordered", { count: items.length });
+    revalidateTag("taxonomy", "default");
   },
 };

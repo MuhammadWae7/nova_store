@@ -18,23 +18,24 @@ model Admin {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   auditLogs        AuditLog[]
-  invitationTokens InvitationToken[]
+  adminTokens AdminToken[]
 
   @@map("admins")
 }
 
-model InvitationToken {
-  id        String    @id @default(cuid())
+model AdminToken {
+  id        String            @id @default(cuid())
   adminId   String
-  tokenHash String    @unique
+  tokenHash String            @unique
+  purpose   AdminTokenPurpose @default(INVITE)
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime  @default(now())
-  admin     Admin     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  createdAt DateTime          @default(now())
+  admin     Admin             @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([tokenHash])
   @@index([adminId])
-  @@map("invitation_tokens")
+  @@map("admin_tokens")
 }
 
 model RateLimitEntry {
@@ -206,6 +207,11 @@ enum AdminRole {
   ADMIN
   EDITOR
   VIEWER
+}
+
+enum AdminTokenPurpose {
+  INVITE
+  RESET
 }
 
 enum SizeType {

@@ -28,7 +28,9 @@ export const ProductService = {
     if (filters?.page) params.set("page", String(filters.page));
     if (filters?.limit) params.set("limit", String(filters.limit));
 
-    const res = await apiFetch<{ data: { products: ApiProduct[], pagination: PaginationInfo } }>(`${API_BASE}/products?${params.toString()}`);
+    const res = await apiFetch<{
+      data: { products: ApiProduct[]; pagination: PaginationInfo };
+    }>(`${API_BASE}/products?${params.toString()}`);
     const data = res?.data?.data;
 
     return {
@@ -42,7 +44,9 @@ export const ProductService = {
    */
   getBySlug: async (slug: string): Promise<Product | undefined> => {
     try {
-      const res = await apiFetch<{ data: ApiProduct }>(`${API_BASE}/products/${slug}`);
+      const res = await apiFetch<{ data: ApiProduct }>(
+        `${API_BASE}/products/${slug}`,
+      );
       if (!res?.data?.data) return undefined;
       return mapApiProductToFrontend(res.data.data);
     } catch {
@@ -55,7 +59,9 @@ export const ProductService = {
    */
   getRelated: async (categoryId: string): Promise<Product[]> => {
     try {
-      const res = await apiFetch<{ data: { products: ApiProduct[] } }>(`${API_BASE}/products?categoryId=${categoryId}`);
+      const res = await apiFetch<{ data: { products: ApiProduct[] } }>(
+        `${API_BASE}/products?categoryId=${categoryId}`,
+      );
       return (res?.data?.data?.products || []).map(mapApiProductToFrontend);
     } catch {
       return [];
@@ -67,14 +73,18 @@ export const ProductService = {
   /**
    * Get all products including inactive (admin).
    */
-  getAllAdmin: async (page = 1, limit = 20): Promise<{ products: Product[]; pagination?: PaginationInfo }> => {
-    const res = await apiFetch<{ data: { products: ApiProduct[], pagination: PaginationInfo } }>(
-      `${API_BASE}/products/admin/all?page=${page}&limit=${limit}`,
-      { context: "admin" }
-    );
+  getAllAdmin: async (
+    page = 1,
+    limit = 20,
+  ): Promise<{ products: Product[]; pagination?: PaginationInfo }> => {
+    const res = await apiFetch<{
+      data: { products: ApiProduct[]; pagination: PaginationInfo };
+    }>(`${API_BASE}/products/admin/all?page=${page}&limit=${limit}`, {
+      context: "admin",
+    });
     const data = res?.data?.data;
     return {
-      products: (data?.products || []).map(mapApiProductToFrontend),
+      products: (data?.products || []) as unknown as Product[],
       pagination: data?.pagination,
     };
   },
@@ -84,7 +94,10 @@ export const ProductService = {
    */
   getAdminById: async (id: string): Promise<Product | null> => {
     try {
-      const res = await apiFetch<{ data: ApiProduct }>(`${API_BASE}/products/admin/${id}`, { context: "admin" });
+      const res = await apiFetch<{ data: ApiProduct }>(
+        `${API_BASE}/products/admin/${id}`,
+        { context: "admin" },
+      );
       if (!res?.data?.data) return null;
       return mapApiProductToFrontend(res.data.data);
     } catch {
@@ -130,7 +143,7 @@ export const ProductService = {
     _productId: string,
     _variantId: string,
     _size: string,
-    _quantity: number
+    _quantity: number,
   ): Promise<void> => {
     // Stock decrement is now handled atomically on the server during order creation.
     // This method is kept for backward compatibility but does nothing.

@@ -1,0 +1,80 @@
+
+> nova_store@1.0.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 6.8s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/43) ...
+  Generating static pages using 7 workers (10/43) 
+  Generating static pages using 7 workers (21/43) 
+  Generating static pages using 7 workers (32/43) 
+✓ Generating static pages using 7 workers (43/43) in 659.5ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /admin
+├ ○ /admin/content
+├ ○ /admin/login
+├ ○ /admin/orders
+├ ○ /admin/products
+├ ƒ /admin/products/[id]
+├ ○ /admin/set-password
+├ ○ /admin/settings
+├ ○ /admin/settings/admins
+├ ○ /admin/taxonomy
+├ ƒ /api/admin/admins
+├ ƒ /api/admin/admins/[id]
+├ ƒ /api/admin/admins/[id]/reset-password
+├ ƒ /api/admin/admins/change-password
+├ ƒ /api/admin/audit-logs
+├ ƒ /api/admin/auth/set-password
+├ ƒ /api/admin/content
+├ ƒ /api/admin/invitations
+├ ƒ /api/admin/orders
+├ ƒ /api/admin/orders/[id]
+├ ƒ /api/admin/products
+├ ƒ /api/admin/products/[id]
+├ ƒ /api/admin/stats
+├ ƒ /api/admin/taxonomy/categories
+├ ƒ /api/admin/taxonomy/categories/[id]
+├ ƒ /api/admin/taxonomy/categories/reorder
+├ ƒ /api/admin/taxonomy/sections
+├ ƒ /api/admin/taxonomy/sections/[id]
+├ ƒ /api/admin/taxonomy/sections/reorder
+├ ƒ /api/admin/upload
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/me
+├ ƒ /api/auth/set-password
+├ ƒ /api/content
+├ ƒ /api/events/stream
+├ ƒ /api/orders
+├ ƒ /api/products
+├ ƒ /api/products/[slug]
+├ ƒ /api/taxonomy/categories
+├ ƒ /api/taxonomy/categories/[id]
+├ ƒ /api/taxonomy/categories/reorder
+├ ƒ /api/taxonomy/sections
+├ ƒ /api/taxonomy/sections/[id]
+├ ƒ /api/taxonomy/sections/all
+├ ƒ /api/taxonomy/sections/reorder
+├ ○ /apple-icon.png
+├ ○ /checkout
+├ ○ /icon.png
+├ ○ /products
+└ ƒ /products/[slug]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

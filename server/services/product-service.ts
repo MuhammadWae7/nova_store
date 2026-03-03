@@ -2,6 +2,7 @@ import { prisma } from "@/server/db/client";
 import { AppError, NotFoundError } from "@/server/lib/errors";
 import { logger } from "@/server/lib/logger";
 import { auditService } from "./audit-service";
+import { revalidateTag } from "next/cache";
 
 function generateSlug(name: string): string {
   return name
@@ -152,7 +153,7 @@ export const productService = {
         sizes: Array<{ size: string; stock: number; sku: string }>;
       }>;
     },
-    adminId: string
+    adminId: string,
   ) {
     const slug = generateSlug(data.name);
 
@@ -200,7 +201,12 @@ export const productService = {
       details: { name: product.name, slug: product.slug },
     });
 
-    logger.info("Product created", { productId: product.id, name: product.name });
+    logger.info("Product created", {
+      productId: product.id,
+      name: product.name,
+    });
+
+    revalidateTag("products", "default");
     return product;
   },
 
@@ -231,7 +237,7 @@ export const productService = {
         }>;
       }>;
     },
-    adminId: string
+    adminId: string,
   ) {
     const existing = await prisma.product.findUnique({
       where: { id },
@@ -255,11 +261,19 @@ export const productService = {
         where: { id },
         data: {
           ...(data.name !== undefined ? { name: data.name, slug } : {}),
-          ...(data.description !== undefined ? { description: data.description } : {}),
+          ...(data.description !== undefined
+            ? { description: data.description }
+            : {}),
           ...(data.price !== undefined ? { price: data.price } : {}),
-          ...(data.categoryId !== undefined ? { categoryId: data.categoryId } : {}),
-          ...(data.gender !== undefined ? { gender: data.gender as never } : {}),
-          ...(data.isNewArrival !== undefined ? { isNewArrival: data.isNewArrival } : {}),
+          ...(data.categoryId !== undefined
+            ? { categoryId: data.categoryId }
+            : {}),
+          ...(data.gender !== undefined
+            ? { gender: data.gender as never }
+            : {}),
+          ...(data.isNewArrival !== undefined
+            ? { isNewArrival: data.isNewArrival }
+            : {}),
           ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
         },
       });
@@ -267,11 +281,13 @@ export const productService = {
       // Handle variant updates if provided (B4: partial, non-destructive)
       if (data.variants) {
         const existingVariantIds = existing.variants.map((v) => v.id);
-        const incomingVariantIds = data.variants.filter((v) => v.id).map((v) => v.id!);
+        const incomingVariantIds = data.variants
+          .filter((v) => v.id)
+          .map((v) => v.id!);
 
         // Delete variants that are no longer in the list
         const variantsToDelete = existingVariantIds.filter(
-          (vid) => !incomingVariantIds.includes(vid)
+          (vid) => !incomingVariantIds.includes(vid),
         );
         if (variantsToDelete.length > 0) {
           await tx.productSize.deleteMany({
@@ -304,7 +320,7 @@ export const productService = {
 
             // Delete sizes no longer present
             const sizesToDelete = existingSizes.filter(
-              (sid) => !incomingSizeIds.includes(sid)
+              (sid) => !incomingSizeIds.includes(sid),
             );
             if (sizesToDelete.length > 0) {
               await tx.productSize.deleteMany({
@@ -353,7 +369,9 @@ export const productService = {
 
       return tx.product.findUnique({
         where: { id },
-        include: { variants: { include: { sizes: true }, orderBy: { sortOrder: "asc" } } },
+        include: {
+          variants: { include: { sizes: true }, orderBy: { sortOrder: "asc" } },
+        },
       });
     });
 
@@ -371,6 +389,8 @@ export const productService = {
     });
 
     logger.info("Product updated", { productId: id });
+
+    revalidateTag("products", "default");
     return product;
   },
 
@@ -396,5 +416,7 @@ export const productService = {
     });
 
     logger.info("Product soft-deleted", { productId: id, name: product.name });
+
+    revalidateTag("products", "default");
   },
 };

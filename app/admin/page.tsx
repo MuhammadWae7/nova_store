@@ -18,11 +18,14 @@ interface DashboardStats {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [daysFilter, setDaysFilter] = useState<string>("0"); // "0" means all time
 
   useEffect(() => {
     const fetchStats = async () => {
+      setLoading(true);
       try {
-        const res = await fetch("/api/admin/stats", { credentials: "include" });
+        const query = daysFilter !== "0" ? `?days=${daysFilter}` : "";
+        const res = await fetch(`/api/admin/stats${query}`, { credentials: "include" });
         const data = await res.json();
         if (data.success) {
           setStats(data.data);
@@ -35,7 +38,7 @@ export default function AdminDashboard() {
     };
 
     fetchStats();
-  }, []);
+  }, [daysFilter]);
 
   const statCards = [
     {
@@ -85,9 +88,25 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-white">لوحة التحكم</h1>
-        <p className="text-neutral-400">مرحبًا بك في لوحة تحكم نوفا فاشن.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white">لوحة التحكم</h1>
+          <p className="text-neutral-400">مرحبًا بك في لوحة تحكم نوفا فاشن.</p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+           <span className="text-sm text-neutral-400">الفترة:</span>
+           <select 
+             value={daysFilter}
+             onChange={(e) => setDaysFilter(e.target.value)}
+             className="h-10 rounded-md border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent"
+           >
+              <option value="0">كل الوقت</option>
+              <option value="7">آخر 7 أيام</option>
+              <option value="30">آخر 30 يوم</option>
+              <option value="90">آخر 90 يوم</option>
+           </select>
+        </div>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

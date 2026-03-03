@@ -10,6 +10,16 @@ import { createHash, randomBytes } from "crypto";
 
 const BCRYPT_ROUNDS = 12;
 const INVITATION_TOKEN_EXPIRY_HOURS = 24;
+const RESET_TOKEN_EXPIRY_HOURS = 2; // Shorter expiry for password reset
+
+/**
+ * Validates a password against complexity requirements.
+ */
+function validatePassword(password: string) {
+  if (password.length < 8) {
+    throw new AppError(400, "كلمة المرور يجب أن تتكون من 8 أحرف على الأقل");
+  }
+}
 
 /**
  * Hash a raw invitation token using SHA-256.
@@ -36,7 +46,10 @@ export const authService = {
 
     // If admin hasn't set password yet, only allow if mustSetPassword is true
     if (admin.mustSetPassword || !admin.passwordHash) {
-      throw new AppError(403, "يجب تعيين كلمة المرور أولاً. استخدم رابط تعيين كلمة المرور.");
+      throw new AppError(
+        403,
+        "يجب تعيين كلمة المرور أولاً. استخدم رابط تعيين كلمة المرور.",
+      );
     }
 
     const isValid = await compare(password, admin.passwordHash);
@@ -47,7 +60,7 @@ export const authService = {
     // Create session
     const session = await getIronSession<SessionData>(
       await cookies(),
-      sessionOptions
+      sessionOptions,
     );
 
     session.adminId = admin.id;
@@ -80,7 +93,11 @@ export const authService = {
    * Only SUPER_ADMIN can create these.
    * Returns the raw token to be shared securely (email/direct message).
    */
-  async createInvitationToken(adminId: string, creatorAdminId: string, ipAddress?: string) {
+  async createInvitationToken(
+    adminId: string,
+    creatorAdminId: string,
+    ipAddress?: string,
+  ) {
     const admin = await prisma.admin.findUnique({ where: { id: adminId } });
     if (!admin) throw new AppError(404, "المدير غير موجود");
     if (!admin.mustSetPassword && admin.passwordHash) {
@@ -88,20 +105,22 @@ export const authService = {
     }
 
     // Invalidate any existing unused tokens for this admin
-    await prisma.invitationToken.updateMany({
-      where: { adminId, usedAt: null },
+    await prisma.adminToken.updateMany({
+      where: { adminId, usedAt: null, purpose: "INVITE" },
       data: { usedAt: new Date() }, // Mark as used to invalidate
     });
 
     // Generate secure random token
     const rawToken = randomBytes(32).toString("hex");
     const tokenHash = hashToken(rawToken);
-    const expiresAt = new Date(Date.now() + INVITATION_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
-
-    await prisma.invitationToken.create({
+    const expiresAt = new Date(
+      Date.now() + INVITATION_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000,
+    );
+    await prisma.adminToken.create({
       data: {
         adminId,
         tokenHash,
+        purpose: "INVITE",
         expiresAt,
       },
     });
@@ -116,7 +135,63 @@ export const authService = {
       details: { targetEmail: admin.email, expiresAt: expiresAt.toISOString() },
     });
 
-    logger.info("Invitation token created", { adminId, creatorId: creatorAdminId });
+    logger.info("Invitation token created", {
+      adminId,
+      creatorId: creatorAdminId,
+    });
+
+    return {
+      token: rawToken,
+      email: admin.email,
+      expiresAt,
+    };
+  },
+
+  /**
+   * Create a password reset token for an existing admin. (SEC-03)
+   * Only SUPER_ADMIN can create these.
+   * Returns the raw token.
+   */
+  async createResetToken(
+    adminId: string,
+    creatorAdminId: string,
+    ipAddress?: string,
+  ) {
+    const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new AppError(404, "المدير غير موجود");
+
+    // Invalidate any existing unused reset tokens for this admin
+    await prisma.adminToken.deleteMany({
+      where: { adminId, purpose: "RESET" },
+    });
+
+    // Generate secure random token
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(
+      Date.now() + RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000,
+    );
+
+    await prisma.adminToken.create({
+      data: {
+        adminId,
+        tokenHash,
+        purpose: "RESET",
+        expiresAt,
+      },
+    });
+
+    // Audit log
+    await auditService.log({
+      adminId: creatorAdminId,
+      action: "INVITATION_CREATE", // AuditAction reuse
+      entity: "admin_reset",
+      entityId: adminId,
+      ipAddress,
+      details: { targetEmail: admin.email, expiresAt: expiresAt.toISOString() },
+    });
+
+    logger.info("Reset token created", { adminId, creatorId: creatorAdminId });
 
     return {
       token: rawToken,
@@ -129,38 +204,43 @@ export const authService = {
    * Set password using a valid invitation token. (SEC-03)
    * The token is single-use, hashed, and has an expiry.
    */
-  async setPasswordWithToken(rawToken: string, password: string, ipAddress?: string) {
+  async setPasswordWithToken(
+    rawToken: string,
+    password: string,
+    ipAddress?: string,
+  ) {
     const tokenHash = hashToken(rawToken);
 
-    const invitation = await prisma.invitationToken.findUnique({
+    const adminToken = await prisma.adminToken.findUnique({
       where: { tokenHash },
       include: { admin: true },
     });
 
-    if (!invitation) {
+    if (!adminToken) {
       throw new UnauthorizedError("رابط غير صالح أو منتهي الصلاحية");
     }
 
-    if (invitation.usedAt) {
+    if (adminToken.usedAt) {
       throw new AppError(400, "تم استخدام هذا الرابط بالفعل");
     }
 
-    if (invitation.expiresAt < new Date()) {
+    if (adminToken.expiresAt < new Date()) {
       throw new AppError(400, "انتهت صلاحية هذا الرابط. اطلب رابطاً جديداً.");
     }
 
-    const admin = invitation.admin;
+    validatePassword(password);
+
+    const admin = adminToken.admin;
     const passwordHash = await hash(password, BCRYPT_ROUNDS);
 
-    // Atomic: set password + mark token as used
+    // Atomic: set password + mark token as used by deleting it (hygiene)
     await prisma.$transaction([
       prisma.admin.update({
         where: { id: admin.id },
         data: { passwordHash, mustSetPassword: false },
       }),
-      prisma.invitationToken.update({
-        where: { id: invitation.id },
-        data: { usedAt: new Date() },
+      prisma.adminToken.delete({
+        where: { id: adminToken.id },
       }),
     ]);
 
@@ -176,7 +256,7 @@ export const authService = {
     // Auto-login after setting password
     const session = await getIronSession<SessionData>(
       await cookies(),
-      sessionOptions
+      sessionOptions,
     );
 
     session.adminId = admin.id;
@@ -185,7 +265,9 @@ export const authService = {
     session.createdAt = Date.now();
     await session.save();
 
-    logger.info("Admin password set via invitation token", { adminId: admin.id });
+    logger.info("Admin password set via invitation token", {
+      adminId: admin.id,
+    });
 
     return {
       id: admin.id,
@@ -196,12 +278,54 @@ export const authService = {
   },
 
   /**
+   * Change own password. Used by logged-in admin.
+   */
+  async changeOwnPassword(
+    adminId: string,
+    currentPassword: string,
+    newPassword: string,
+    ipAddress?: string,
+  ) {
+    const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new AppError(404, "المدير غير موجود");
+
+    if (!admin.passwordHash) {
+      throw new AppError(400, "برجاء تعيين كلمة مرور جديدة عبر الرابط أولاً");
+    }
+
+    const isValid = await compare(currentPassword, admin.passwordHash);
+    if (!isValid) {
+      throw new UnauthorizedError("كلمة المرور الحالية غير صحيحة");
+    }
+
+    validatePassword(newPassword);
+
+    const newPasswordHash = await hash(newPassword, BCRYPT_ROUNDS);
+
+    await prisma.admin.update({
+      where: { id: adminId },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    // Audit log
+    await auditService.log({
+      adminId,
+      action: "ADMIN_PASSWORD_SET",
+      entity: "admin",
+      entityId: adminId,
+      ipAddress,
+    });
+
+    logger.info("Admin changed own password", { adminId });
+  },
+
+  /**
    * Destroy the current session.
    */
   async logout() {
     const session = await getIronSession<SessionData>(
       await cookies(),
-      sessionOptions
+      sessionOptions,
     );
 
     const adminId = session.adminId;
@@ -225,7 +349,7 @@ export const authService = {
   async getCurrentAdmin() {
     const session = await getIronSession<SessionData>(
       await cookies(),
-      sessionOptions
+      sessionOptions,
     );
 
     if (!session.adminId) return null;
