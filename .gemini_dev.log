@@ -18,3 +18,5 @@
 prisma:error Received network error or non-101 status code.
  GET /api/products 500 in 1658ms (compile: 530ms, proxy.ts: 76ms, render: 1053ms)
 prisma:error Received network error or non-101 status code.
+  Reload env: .env.local
+  Reload env: .env.local
