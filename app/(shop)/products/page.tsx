@@ -1,36 +1,34 @@
-"use client";
-
-import { useEffect, useState } from "react";
+/**
+ * Products Listing Page — Server Component.
+ * Fetches product data directly from cachedProductService at render time.
+ * No "use client", no useEffect, no loading flash. Filtering/pagination
+ * can be driven by searchParams which are passed as RSC props.
+ * Interactive filter UI can be a "use client" child component.
+ */
+import { cachedProductService } from "@/server/services/cached-product-service";
 import { Container } from "@/components/ui/container";
 import { ProductCard } from "@/components/product/product-card";
-import { ProductService } from "@/services/product-service";
-import { Product } from "@/features/product/types";
 
-export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+interface ProductsPageProps {
+  searchParams: Promise<{
+    page?: string;
+    limit?: string;
+    gender?: string;
+    categoryId?: string;
+    search?: string;
+  }>;
+}
 
-  useEffect(() => {
-    const loadProducts = async () => {
-      const data = await ProductService.getAll();
-      setProducts(data.products);
-      setLoading(false);
-    };
-    loadProducts();
-  }, []);
+export default async function ProductsPage({ searchParams }: ProductsPageProps) {
+  const params = await searchParams;
 
-  if (loading) {
-      return (
-          <Container className="py-16">
-              <div className="h-12 w-48 bg-neutral-900 rounded mb-12 animate-pulse"></div>
-              <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {[1,2,3,4].map(i => (
-                      <div key={i} className="aspect-[3/4] bg-neutral-900 rounded-sm animate-pulse"></div>
-                  ))}
-              </div>
-          </Container>
-      );
-  }
+  const { products, pagination } = await cachedProductService.getAllLean({
+    page: params.page ? Number(params.page) : 1,
+    limit: params.limit ? Number(params.limit) : 20,
+    gender: params.gender,
+    categoryId: params.categoryId,
+    search: params.search,
+  });
 
   return (
     <Container className="py-16">
@@ -43,11 +41,22 @@ export default function ProductsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </div>
+      {products.length === 0 ? (
+        <p className="text-muted-foreground">No products found.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      )}
+
+      {/* Pagination hint — total pages available for implementing page navigation */}
+      {pagination.totalPages > 1 && (
+        <p className="mt-8 text-sm text-muted-foreground text-center">
+          Page {pagination.page} of {pagination.totalPages}
+        </p>
+      )}
     </Container>
   );
 }

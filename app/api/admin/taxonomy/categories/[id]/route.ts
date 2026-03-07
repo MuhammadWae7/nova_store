@@ -1,10 +1,10 @@
 /**
  * Admin Taxonomy — Category Detail
- * PATCH  /api/admin/taxonomy/categories/[id] — Update category
- * DELETE /api/admin/taxonomy/categories/[id] — Delete category
+ * PATCH  /api/admin/taxonomy/categories/[id] — Update category (ADMIN+ only)
+ * DELETE /api/admin/taxonomy/categories/[id] — Delete category (ADMIN+ only)
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/server/middleware/auth-guard";
+import { requireRole } from "@/server/middleware/auth-guard";
 import { taxonomyService } from "@/server/services/taxonomy-service";
 import { errorResponse } from "@/server/lib/errors";
 import { validateCsrf } from "@/server/middleware/csrf";
@@ -17,10 +17,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   try {
     const csrf = validateCsrf(request);
     if (!csrf.valid) {
-      return NextResponse.json({ success: false, error: csrf.error }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: csrf.error },
+        { status: 403 },
+      );
     }
 
-    await requireAdmin();
+    await requireRole("SUPER_ADMIN", "ADMIN");
     const { id } = await params;
     const body = await request.json();
 
@@ -35,10 +38,13 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const csrf = validateCsrf(request);
     if (!csrf.valid) {
-      return NextResponse.json({ success: false, error: csrf.error }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: csrf.error },
+        { status: 403 },
+      );
     }
 
-    await requireAdmin();
+    await requireRole("SUPER_ADMIN", "ADMIN");
     const { id } = await params;
     const force = new URL(request.url).searchParams.get("force") === "true";
 

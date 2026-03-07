@@ -1,10 +1,10 @@
 /**
- * POST /api/admin/upload — Image upload
+ * POST /api/admin/upload — Image upload (ADMIN+ only)
  * Uses platform-agnostic storage adapter (S3-compatible or local dev).
  * Validates file type and size. Returns public URL.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/server/middleware/auth-guard";
+import { requireRole } from "@/server/middleware/auth-guard";
 import { errorResponse, AppError } from "@/server/lib/errors";
 import { auditService } from "@/server/services/audit-service";
 import { logger } from "@/server/lib/logger";
@@ -12,11 +12,16 @@ import { getStorage } from "@/server/lib/storage";
 import { randomBytes } from "crypto";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+const ALLOWED_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+]);
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAdmin();
+    const session = await requireRole("SUPER_ADMIN", "ADMIN");
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -27,7 +32,10 @@ export async function POST(request: NextRequest) {
 
     // Validate file type
     if (!ALLOWED_TYPES.has(file.type)) {
-      throw new AppError(400, "نوع الملف غير مدعوم. يُسمح بـ JPEG, PNG, WebP, AVIF فقط.");
+      throw new AppError(
+        400,
+        "نوع الملف غير مدعوم. يُسمح بـ JPEG, PNG, WebP, AVIF فقط.",
+      );
     }
 
     // Validate file size

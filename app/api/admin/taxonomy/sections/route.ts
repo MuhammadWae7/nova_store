@@ -1,10 +1,10 @@
 /**
  * Admin Taxonomy — Sections
- * GET  /api/admin/taxonomy/sections — All sections (including hidden)
- * POST /api/admin/taxonomy/sections — Create section
+ * GET  /api/admin/taxonomy/sections — All sections (any authenticated admin)
+ * POST /api/admin/taxonomy/sections — Create section (ADMIN+ only)
  */
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/server/middleware/auth-guard";
+import { requireAdmin, requireRole } from "@/server/middleware/auth-guard";
 import { taxonomyService } from "@/server/services/taxonomy-service";
 import { errorResponse } from "@/server/lib/errors";
 import { validateCsrf } from "@/server/middleware/csrf";
@@ -23,14 +23,20 @@ export async function POST(request: NextRequest) {
   try {
     const csrf = validateCsrf(request);
     if (!csrf.valid) {
-      return NextResponse.json({ success: false, error: csrf.error }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: csrf.error },
+        { status: 403 },
+      );
     }
 
-    await requireAdmin();
+    await requireRole("SUPER_ADMIN", "ADMIN");
 
     const body = await request.json();
     if (!body.name?.trim()) {
-      return NextResponse.json({ success: false, error: "اسم القسم مطلوب" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "اسم القسم مطلوب" },
+        { status: 400 },
+      );
     }
 
     const section = await taxonomyService.createSection(body.name.trim());

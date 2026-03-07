@@ -43,7 +43,7 @@ class WhatsAppProvider {
     const items = order.items
       .map(
         (i) =>
-          `• ${i.quantity}× ${i.productName} - مقاس ${i.size} — ${i.unitPrice} ج.م`
+          `• ${i.quantity}× ${i.productName} - مقاس ${i.size} — ${i.unitPrice} ج.م`,
       )
       .join("\n");
 
@@ -80,7 +80,10 @@ class WhatsAppProvider {
     ].join("\n");
   }
 
-  async sendMessage(phone: string, message: string): Promise<NotificationResult> {
+  async sendMessage(
+    phone: string,
+    message: string,
+  ): Promise<NotificationResult> {
     if (!this.apiUrl || !this.token) {
       logger.warn("WhatsApp not configured, skipping notification", { phone });
       return { success: false };
@@ -120,12 +123,16 @@ class WhatsAppProvider {
     }
   }
 
-  async sendOrderNotification(order: OrderWithItems): Promise<NotificationResult> {
+  async sendOrderNotification(
+    order: OrderWithItems,
+  ): Promise<NotificationResult> {
     const message = this.formatOrderMessage(order);
     return this.sendMessage(this.vendorPhone, message);
   }
 
-  async sendStatusUpdateToCustomer(order: OrderWithItems): Promise<NotificationResult> {
+  async sendStatusUpdateToCustomer(
+    order: OrderWithItems,
+  ): Promise<NotificationResult> {
     const message = this.formatStatusMessage(order);
     // Format Egyptian phone: 01XXXXXXXXX → 201XXXXXXXXX
     const phone = order.customerPhone.startsWith("0")
@@ -139,7 +146,9 @@ class WhatsAppProvider {
  * Console fallback provider for development.
  */
 class ConsoleProvider {
-  async sendOrderNotification(order: OrderWithItems): Promise<NotificationResult> {
+  async sendOrderNotification(
+    order: OrderWithItems,
+  ): Promise<NotificationResult> {
     logger.info("📱 [DEV] Order notification", {
       orderNumber: order.orderNumber,
       vendorPhone: "201551798114",
@@ -147,7 +156,9 @@ class ConsoleProvider {
     return { success: true, messageId: "dev-mock" };
   }
 
-  async sendStatusUpdateToCustomer(order: OrderWithItems): Promise<NotificationResult> {
+  async sendStatusUpdateToCustomer(
+    order: OrderWithItems,
+  ): Promise<NotificationResult> {
     logger.info("📱 [DEV] Customer status update", {
       orderNumber: order.orderNumber,
       customerPhone: order.customerPhone,
@@ -157,7 +168,25 @@ class ConsoleProvider {
   }
 }
 
-// Export singleton — uses real WhatsApp if configured, console fallback otherwise
-export const notificationService = process.env.WHATSAPP_TOKEN
+// Known placeholder values from .env.example / documentation
+const PLACEHOLDER_TOKENS = new Set([
+  "your-permanent-access-token",
+  "YOUR_TOKEN",
+  "EAAxxxxxxx",
+  "placeholder",
+  "test",
+]);
+
+/**
+ * Returns true only if the token is non-empty and not a known placeholder.
+ * Prevents accidental WhatsApp API calls during development.
+ */
+function isConfiguredToken(token: string | undefined): boolean {
+  if (!token) return false;
+  return !PLACEHOLDER_TOKENS.has(token.trim());
+}
+
+// Export singleton — uses real WhatsApp if properly configured, console fallback otherwise
+export const notificationService = isConfiguredToken(process.env.WHATSAPP_TOKEN)
   ? new WhatsAppProvider()
   : new ConsoleProvider();

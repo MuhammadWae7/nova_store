@@ -1,39 +1,20 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { ContentService, HomePageData } from "@/services/content-service";
-import { ProductService } from "@/services/product-service";
-import { Product } from "@/features/product/types";
+/**
+ * Homepage — Server Component.
+ * Data is fetched directly from server-side services with Next.js caching.
+ * No "use client", no useEffect, no loading flash. SSR + cache invalidation
+ * via revalidateTag("products") / revalidateTag("content") work automatically.
+ */
+import { siteContentService } from "@/server/services/site-content-service";
+import { cachedProductService } from "@/server/services/cached-product-service";
 import { HeroSection } from "@/components/home/hero-section";
 import { BrandMarquee } from "@/components/home/brand-marquee";
 import { FeaturedCollection } from "@/components/home/featured-collection";
 
-export default function Home() {
-  const [content, setContent] = useState<HomePageData | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [contentData, productsResult] = await Promise.all([
-          ContentService.getHomePageData(),
-          ProductService.getAll()
-        ]);
-        setContent(contentData);
-        setProducts(productsResult.products);
-      } catch (e) {
-        console.error("Failed to load home data", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
-
-  if (loading || !content) {
-      return <div className="min-h-screen bg-black flex items-center justify-center text-white">Loading...</div>;
-  }
+export default async function Home() {
+  const [content, productsResult] = await Promise.all([
+    siteContentService.getHomePageData(),
+    cachedProductService.getAllLean({ limit: 8 }),
+  ]);
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -44,9 +25,9 @@ export default function Home() {
       <BrandMarquee data={content.marquee} />
 
       {/* Featured Collection */}
-      <FeaturedCollection 
-        data={content.featuredCollection} 
-        products={products} 
+      <FeaturedCollection
+        data={content.featuredCollection}
+        products={productsResult.products}
       />
 
       {/* Spacer for Verification Visuals */}

@@ -56,9 +56,34 @@ class InMemoryRealtimePublisher implements IRealtimePublisher {
 
 // ─── Singleton ─────────────────────────────────
 
+/**
+ * ⚠️  MULTI-INSTANCE LIMITATION
+ *
+ * This in-memory publisher is only correct for single-instance Node.js deployments
+ * (e.g. a single container, PM2 single process, Railway free tier).
+ *
+ * It WILL silently break on:
+ *   • Vercel / Cloudflare Workers deployments (serverless — no shared process)
+ *   • Horizontal scaling (multiple containers / dynos)
+ *   • Any deployment where SSE connections are load-balanced across processes
+ *
+ * To replace: implement IRealtimePublisher backed by one of:
+ *   1. Postgres LISTEN/NOTIFY  — zero new infra, use the existing Neon connection
+ *   2. Upstash Redis pub/sub   — add UPSTASH_REDIS_REST_URL + TOKEN env vars
+ *   3. Pusher / Ably           — add provider credentials to .env
+ *   Then swap the export below with your new implementation class.
+ */
 const globalForRealtime = globalThis as unknown as {
   realtimePublisher: IRealtimePublisher | undefined;
 };
+
+if (process.env.NODE_ENV === "production" && !process.env.REALTIME_EXTERNAL) {
+  console.warn(
+    "[realtime] WARNING: using in-memory SSE publisher. " +
+      "This will not work correctly across multiple instances. " +
+      "Set REALTIME_EXTERNAL=1 to suppress this warning once you have replaced the transport.",
+  );
+}
 
 export const realtimePublisher: IRealtimePublisher =
   globalForRealtime.realtimePublisher ?? new InMemoryRealtimePublisher();

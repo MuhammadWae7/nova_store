@@ -72,6 +72,95 @@ export const productService = {
   },
 
   /**
+   * Get active products for storefront listing — minimal fields only.
+   * Returns just what ProductCard needs: no sizes, only first variant's first image.
+   * Use this for listing pages; use getAll() / getById() for detail / checkout.
+   */
+  async getAllLean(options?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    categoryId?: string;
+    gender?: string;
+  }) {
+    const page = options?.page || 1;
+    const limit = Math.min(options?.limit || 20, 50);
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = { isActive: true };
+
+    if (options?.categoryId) {
+      where.categoryId = options.categoryId;
+    }
+    if (options?.gender) {
+      where.gender = options.gender.toUpperCase();
+    }
+    if (options?.search) {
+      where.OR = [
+        { name: { contains: options.search, mode: "insensitive" } },
+        { description: { contains: options.search, mode: "insensitive" } },
+      ];
+    }
+
+    const [rawProducts, total] = await Promise.all([
+      prisma.product.findMany({
+        where: where as never,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          price: true,
+          currency: true,
+          isNewArrival: true,
+          gender: true,
+          categoryId: true,
+          variants: {
+            orderBy: { sortOrder: "asc" },
+            take: 1,
+            select: {
+              color: true,
+              images: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.product.count({ where: where as never }),
+    ]);
+
+    // Normalize to the shape expected by ProductCard (variants[0].images[0])
+    const products = rawProducts.map((p) => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      price: { amount: Number(p.price), currency: p.currency },
+      isNewArrival: p.isNewArrival,
+      gender: p.gender.toLowerCase() as "men" | "women" | "unisex",
+      categoryId: p.categoryId,
+      description: "",
+      // Provide a minimal variants array so ProductCard can safely read variants[0].images[0]
+      variants: p.variants.map((v) => ({
+        id: "",
+        color: v.color,
+        images: v.images,
+        sizes: [],
+      })),
+    }));
+
+    return {
+      products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  },
+
+  /**
    * Get a single product by slug (public).
    */
   async getBySlug(slug: string) {

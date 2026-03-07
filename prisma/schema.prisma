@@ -1,11 +1,13 @@
-generator client {
+wgenerator client {
   provider   = "prisma-client-js"
   output     = "../server/generated/prisma"
   engineType = "library"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Admin {

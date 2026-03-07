@@ -58,4 +58,24 @@ export const cachedProductService = {
     ["products-single"],
     { tags: ["products"] },
   ),
+
+  /**
+   * Lean listing query — minimal fields, first-image-only, no sizes.
+   * Use this for storefront listing pages. Cached under the "products" tag
+   * so revalidateTag("products") invalidates it on any product mutation.
+   */
+  getAllLean: unstable_cache(
+    async (options?: {
+      categoryId?: string;
+      gender?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    }) => {
+      const result = await productService.getAllLean(options);
+      return result; // already normalized inside getAllLean()
+    },
+    ["products-lean"],
+    { tags: ["products"] },
+  ),
 };
